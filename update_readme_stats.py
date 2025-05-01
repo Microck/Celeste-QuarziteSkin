@@ -1,188 +1,241 @@
 import re
-import requests # Still useful for potentially fetching other things if needed, but not for main scraping
-from bs4 import BeautifulSoup
 import sys
 import os
+import subprocess # To run Git commands
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import TimeoutException, WebDriverException
-import time # Added for potential waits
-from datetime import datetime # Import datetime
+from bs4 import BeautifulSoup
+import time
+from datetime import datetime
 
 # --- Configuration ---
-GAMEBANANA_URL = "https://gamebanana.com/mods/486547" # Your mod URL
-README_PATH = "README.md"
-# User agent for Selenium (less critical than for requests, but good practice)
-USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+GAMEBANANA_URL = "https://gamebanana.com/mods/486547"
+# Assumes script is in the root of the repo
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_DIR = SCRIPT_DIR # Use script's directory as the repo directory
+README_PATH = os.path.join(REPO_DIR, "README.md")
 
-# Placeholders must match the comments in your README.md
+# --- GitHub PAT & Git Config ---
+# !! IMPORTANT !! Set GITHUB_PAT as an environment variable on your system
+# How-to: Search "Edit the system environment variables" -> Environment Variables...
+# -> New System variable -> Name: GITHUB_PAT, Value: <your_token> -> OK -> OK -> OK
+# Restart terminal/PC if needed.
+GITHUB_PAT = os.environ.get('GITHUB_PAT')
+if not GITHUB_PAT:
+    print("CRITICAL ERROR: GITHUB_PAT environment variable not set.", file=sys.stderr)
+    print("Please set it following the instructions in the script comments.", file=sys.stderr)
+    # sys.exit(1) # Exit if running unattended, comment out for manual runs
+
+# Construct repo URL with PAT for pushing
+# Replace 'Microck/Celeste-QuarziteSkin' if your username/repo name is different
+REPO_URL_WITH_PAT = f"https://{GITHUB_PAT}@github.com/Microck/Celeste-QuarziteSkin.git"
+GIT_USER_NAME = "StatsUpdaterBot" # Or your preferred bot name
+GIT_USER_EMAIL = "stats-updater@local.pc" # Or your preferred bot email
+GIT_BRANCH = "main" # Or "master" if that's your default branch
+
+# Optional: Specify ChromeDriver path if it's not in your system PATH
+# CHROMEDRIVER_PATH = "C:/path/to/your/chromedriver.exe" # Example
+CHROMEDRIVER_PATH = None # Set to None to use PATH
+
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
 PLACEHOLDERS = {
     "downloads": "<!-- GB_DOWNLOADS -->",
     "views": "<!-- GB_VIEWS -->",
     "likes": "<!-- GB_LIKES -->",
-    "timestamp": "<!-- LAST_UPDATED -->", # <<< ADDED TIMESTAMP PLACEHOLDER
+    "timestamp": "<!-- LAST_UPDATED -->",
 }
 # --- End Configuration ---
+
+# --- Helper Function for Git Commands ---
+def run_git_command(command, working_dir):
+    """Runs a Git command in the specified directory."""
+    print(f"Running Git: {' '.join(command)}")
+    if not os.path.exists(working_dir):
+         print(f"Error: Git working directory '{working_dir}' does not exist.", file=sys.stderr)
+         return False
+    try:
+        # Pass the current environment variables, including GITHUB_PAT potentially
+        result = subprocess.run(command, cwd=working_dir, check=True, capture_output=True, text=True, env=os.environ, shell=True) # Added shell=True for complex commands if needed, be cautious
+        print(f"Git stdout:\n{result.stdout}")
+        if result.stderr:
+            print(f"Git stderr:\n{result.stderr}", file=sys.stderr)
+        return True # Command succeeded
+    except subprocess.CalledProcessError as e:
+        print(f"Error running Git command {' '.join(command)}:", file=sys.stderr)
+        print(f"Return code: {e.returncode}", file=sys.stderr)
+        print(f"Stderr:\n{e.stderr}", file=sys.stderr)
+        print(f"Stdout:\n{e.stdout}", file=sys.stderr)
+        return False # Command failed
+    except FileNotFoundError:
+        print("Error: 'git' command not found. Is Git installed and in PATH?", file=sys.stderr)
+        return False
+    except Exception as e:
+        print(f"An unexpected error occurred running git: {e}", file=sys.stderr)
+        return False
+# --- End Helper Function ---
+
 
 def scrape_stats(url):
     """Fetches the Gamebanana page using Selenium and extracts stats."""
     print(f"Fetching stats from: {url} using Selenium")
 
-    # Set up Selenium WebDriver Options
     chrome_options = Options()
     chrome_options.add_argument(f"user-agent={USER_AGENT}")
-    chrome_options.add_argument("--headless") # Run in headless mode (no browser UI)
-    chrome_options.add_argument("--no-sandbox") # Required for running as root/in containers
-    chrome_options.add_argument("--disable-dev-shm-usage") # Overcome limited resource problems
-    chrome_options.add_argument("--disable-gpu") # Often necessary for headless
-    chrome_options.add_argument("--window-size=1920,1080") # Specify window size
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--window-size=1920,1080")
+    chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    chrome_options.add_argument('--log-level=3')
 
-driver = None # Initialize driver to None
+    driver = None
     try:
-        # Initialize WebDriver
-        driver = webdriver.Chrome(options=chrome_options)
-        print("WebDriver initialized successfully.")
-        # <<< ADD THIS LINE >>>
-        time.sleep(2) # Add a small pause to allow driver to fully initialize
-        # <<< END ADDED LINE >>>
+        if CHROMEDRIVER_PATH and os.path.exists(CHROMEDRIVER_PATH):
+             service = Service(executable_path=CHROMEDRIVER_PATH)
+             driver = webdriver.Chrome(service=service, options=chrome_options)
+             print(f"WebDriver initialized using path: {CHROMEDRIVER_PATH}")
+        else:
+             driver = webdriver.Chrome(options=chrome_options)
+             print("WebDriver initialized using system PATH.")
 
-        # Load the page
+        time.sleep(2)
+
         print(f"Loading page: {url}")
         driver.get(url)
-        time.sleep(5) # Wait 5 seconds for JS loading
+        time.sleep(5)
         print("Page loaded. Getting page source...")
 
-        # Get the page source after JS execution
         page_source = driver.page_source
         soup = BeautifulSoup(page_source, "html.parser")
         stats = {}
 
-        # --- HTML Parsing Logic ---
         stats_module = soup.find('module', id='StatsModule')
-
         if stats_module:
             print("Found StatsModule container.")
-            # Likes
+            # Likes, Downloads, Views extraction logic... (same as before)
             like_li = stats_module.find('li', class_='LikeCount')
             if like_li:
                 itemcount_tag = like_li.find('itemcount')
                 if itemcount_tag: stats['likes'] = itemcount_tag.text.strip()
-                else: print("Could not find <itemcount> tag within LikeCount li.", file=sys.stderr)
-            else: print("Could not find LikeCount li element.", file=sys.stderr)
-
-            # Downloads
             download_li = stats_module.find('li', class_='DownloadCount')
             if download_li:
                 itemcount_tag = download_li.find('itemcount')
                 if itemcount_tag: stats['downloads'] = itemcount_tag.text.strip()
-                else: print("Could not find <itemcount> tag within DownloadCount li.", file=sys.stderr)
-            else: print("Could not find DownloadCount li element.", file=sys.stderr)
-
-            # Views
             view_li = stats_module.find('li', class_='ViewCount')
             if view_li:
                 itemcount_tag = view_li.find('itemcount')
                 if itemcount_tag: stats['views'] = itemcount_tag.text.strip()
-                else: print("Could not find <itemcount> tag within ViewCount li.", file=sys.stderr)
-            else: print("Could not find ViewCount li element.", file=sys.stderr)
-
         else:
-            print("Could not find the main stats module (id='StatsModule') even with Selenium.", file=sys.stderr)
+            print("Could not find the main stats module (id='StatsModule').", file=sys.stderr)
 
     except TimeoutException:
-        print("Error: Page load timed out.", file=sys.stderr)
-        return None
+        print("Error: Page load timed out.", file=sys.stderr); return None
     except WebDriverException as e:
         print(f"Error: WebDriverException occurred: {e}", file=sys.stderr)
-        return None
+        print("Ensure Chrome is installed and ChromeDriver matches Chrome version and is in PATH or specified in script.", file=sys.stderr); return None
     except Exception as e:
-        print(f"Error during Selenium scraping: {e}", file=sys.stderr)
-        return None
+        print(f"Error during Selenium scraping: {e}", file=sys.stderr); return None
     finally:
-        if driver:
-            print("Quitting WebDriver.")
-            driver.quit()
+        if driver: print("Quitting WebDriver."); driver.quit()
 
     print(f"Scraped stats: {stats}")
-    # Check if all *original* stats were found (don't require timestamp here)
     if not stats or not all(k in stats for k in ["downloads", "views", "likes"]):
-         print("Failed to find all required stats (downloads, views, likes). Check selectors or page structure.", file=sys.stderr)
-         return None
+         print("Failed to find all required stats.", file=sys.stderr); return None
     return stats
-
 
 def update_readme(readme_path, stats_data):
     """Reads the README, replaces placeholders, and writes back if changed."""
     print(f"Updating README: {readme_path}")
+    if not os.path.exists(readme_path):
+        print(f"Error: README file not found at {readme_path}", file=sys.stderr); return False
     try:
-        with open(readme_path, 'r', encoding='utf-8') as f:
-            readme_content = f.read()
-    except FileNotFoundError:
-        print(f"Error: README file not found at {readme_path}", file=sys.stderr)
-        return False
+        with open(readme_path, 'r', encoding='utf-8') as f: readme_content = f.read()
+    except Exception as e:
+        print(f"Error reading README file: {e}", file=sys.stderr); return False
 
-    original_content = readme_content
-    changes_made = False
-
-    # The stats_data dictionary now includes the timestamp if scraping was successful
+    original_content = readme_content; changes_made = False
     for key, placeholder in PLACEHOLDERS.items():
         if key in stats_data and stats_data[key] is not None:
-            # Regex to find the placeholder and the text immediately following it (until newline or <)
             pattern = re.compile(f"({re.escape(placeholder)})\\s*([^\\n<]+)")
-            # Use the value from the stats_data dictionary (which includes the timestamp string)
             new_text = f"{placeholder} {stats_data[key]}"
-
-            # Perform substitution
             readme_content, num_subs = pattern.subn(new_text, readme_content)
-            if num_subs > 0:
-                print(f"  Updated {key} to {stats_data[key]}")
-                changes_made = True
-            else:
-                # Don't print error if timestamp placeholder wasn't found initially
-                if key != 'timestamp':
-                    print(f"  Placeholder {placeholder} not found or pattern mismatch.")
-        # Don't print error if timestamp key is missing (it's added later)
-        elif key != 'timestamp':
-            print(f"  Stat '{key}' not found in scraped data.")
-
+            if num_subs > 0: print(f"  Updated {key} to {stats_data[key]}"); changes_made = True
+            elif key != 'timestamp': print(f"  Placeholder {placeholder} not found or pattern mismatch.")
+        elif key != 'timestamp': print(f"  Stat '{key}' not found in scraped data.")
 
     if changes_made and readme_content != original_content:
         print("Changes detected, writing updated README...")
         try:
-            with open(readme_path, 'w', encoding='utf-8') as f:
-                f.write(readme_content)
-            print("README update successful.")
-            return True
+            with open(readme_path, 'w', encoding='utf-8') as f: f.write(readme_content)
+            print("README update successful."); return True
         except IOError as e:
-            print(f"Error writing updated README: {e}", file=sys.stderr)
-            return False
-    elif not changes_made:
-        print("No changes needed in README.")
-        return False
+            print(f"Error writing updated README: {e}", file=sys.stderr); return False
     else:
-        print("Content comparison indicates no effective change, skipping write.")
-        return False
+        print("No changes needed in README."); return False
 
-
+# --- Main Execution Block ---
 if __name__ == "__main__":
-    print("Starting README stats update process...")
+    print(f"Starting README stats update process locally at {datetime.now()}...")
+
+    # --- Check for PAT ---
+    if not GITHUB_PAT:
+        print("Skipping Git operations because GITHUB_PAT environment variable is not set.", file=sys.stderr)
+        # Decide if you want the script to exit or just skip git operations
+        # sys.exit(1) # Uncomment to exit if PAT is missing
+
+    # --- Optional: Pull latest changes before scraping ---
+    # print("Pulling latest changes from GitHub...")
+    # if GITHUB_PAT: # Only attempt if PAT is set
+    #     run_git_command(['git', 'pull', 'origin', GIT_BRANCH], REPO_DIR)
+    # else:
+    #     print("Skipping git pull (no PAT).")
+
+    # --- Scrape Data ---
     scraped_data = scrape_stats(GAMEBANANA_URL)
 
     if scraped_data:
-        # <<< GET CURRENT TIME AND ADD TO DATA >>>
-        # Get current time in UTC for consistency
         now_utc = datetime.utcnow()
-        # Format it (example: 2025-05-01 23:59:59 UTC) - Adjust format if desired
         timestamp_str = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
-        # Add the timestamp to the data dictionary to be updated
         scraped_data['timestamp'] = timestamp_str
         print(f"Generated timestamp: {timestamp_str}")
 
-        # Pass the dictionary containing stats AND timestamp to update_readme
-        made_changes = update_readme(README_PATH, scraped_data)
-        sys.exit(0) # Exit success
+        # --- Update README ---
+        readme_changed = update_readme(README_PATH, scraped_data)
+
+        # --- Commit and Push if Changed and PAT is available ---
+        if readme_changed and GITHUB_PAT:
+            print("README changed, attempting to commit and push...")
+            # Configure Git user info (important for commit)
+            if not run_git_command(['git', 'config', 'user.name', GIT_USER_NAME], REPO_DIR): sys.exit(1)
+            if not run_git_command(['git', 'config', 'user.email', GIT_USER_EMAIL], REPO_DIR): sys.exit(1)
+            # Set remote URL with PAT for pushing
+            if not run_git_command(['git', 'remote', 'set-url', 'origin', REPO_URL_WITH_PAT], REPO_DIR): sys.exit(1)
+
+            # Add, Commit, Push
+            if not run_git_command(['git', 'add', README_PATH], REPO_DIR):
+                print("Failed to stage README.md", file=sys.stderr); sys.exit(1)
+            # Check status before commit
+            status_result = subprocess.run(['git', 'status', '--porcelain'], cwd=REPO_DIR, capture_output=True, text=True)
+            if os.path.basename(README_PATH) in status_result.stdout:
+                 print("Staged changes detected, attempting commit...")
+                 if not run_git_command(['git', 'commit', '-m', 'Automated update of Gamebanana stats'], REPO_DIR):
+                      print("Failed to commit changes.", file=sys.stderr); sys.exit(1)
+                 print("Commit successful, attempting push...")
+                 if not run_git_command(['git', 'push', 'origin', GIT_BRANCH], REPO_DIR):
+                      print("Failed to push changes.", file=sys.stderr); sys.exit(1)
+                 print("Changes pushed successfully to GitHub.")
+            else:
+                 print("No actual changes staged for commit after add, skipping commit/push.")
+        elif readme_changed and not GITHUB_PAT:
+            print("README changed locally, but skipping commit/push because GITHUB_PAT is not set.")
+        else:
+            print("No changes to commit or push.")
+
+        sys.exit(0) # Success
     else:
         print("Failed to scrape stats, README not updated.", file=sys.stderr)
-        sys.exit(1) # Exit error
+        sys.exit(1) # Error
