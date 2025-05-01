@@ -1,0 +1,2 @@
+SkinModHelper_Player__Microck_Quarzite= Quarzite
+SkinModHelper_Player__Microck_Quarzite_Playback= Quarzite Silhouette

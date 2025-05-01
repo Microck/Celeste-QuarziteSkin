@@ -1,0 +1,10 @@
+- SkinName: "Microck_Quarzite"
+  Player_List: true
+  Character_ID: "Microck_Quarzite"
+  OtherSprite_Path: "Microck/Quarzite"
+
+- SkinName: "Microck_Quarzite_Playback"
+  Player_List: false
+  Silhouette_List: true
+  Character_ID: "Microck_Quarzite_Playback"
+  OtherSprite_Path: "Microck/Quarzite_Playback"
