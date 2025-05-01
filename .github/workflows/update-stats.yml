@@ -1,0 +1,51 @@
+name: Update Gamebanana Stats
+
+# Controls when the workflow will run
+on:
+  schedule:
+    # Runs every 6 hours (adjust cron schedule as needed)
+    # See: https://crontab.guru/
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # Allows manual triggering from the Actions tab
+
+jobs:
+  update-readme:
+    runs-on: ubuntu-latest
+    permissions:
+      # Give the workflow contents write permission to commit changes
+      contents: write
+    steps:
+      # Check out the repository code
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      # Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9' # Or your preferred Python version
+
+      # Install necessary Python packages
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4
+
+      # Run the Python script to update the README
+      - name: Update README stats
+        run: python update_readme_stats.py
+
+      # Commit and push the changes back to the repository if README changed
+      - name: Commit changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          # Check if README.md was modified
+          if ! git diff --quiet README.md; then
+            git add README.md
+            git commit -m "Automated update of Gamebanana stats"
+            git push
+            echo "README.md updated and pushed."
+          else
+            echo "No changes to README.md detected."
+          fi
