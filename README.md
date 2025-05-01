@@ -17,7 +17,7 @@ This mod replaces Madeline's sprites with my original character, Quarzite.
     *   2 Dashes: Lilac (`#A86ACC`)
     *   *(Note: Hyperline length 7 used in previews)*
 
-<img src="Graphics/Microck/example.gif" alt="Examples" style="width: 100%; height: auto;">
+<img src="Graphics/Microck/example.gif" alt="Examples" style="width: 300%; height: auto;">
 
 ## Installation
 
