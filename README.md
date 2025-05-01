@@ -17,6 +17,8 @@ This mod replaces Madeline's sprites with my original character, Quarzite.
     *   2 Dashes: Lilac (`#A86ACC`)
     *   *(Note: Hyperline length 7 used in previews)*
 
+<img src="Graphics/Microck/example.gif" alt="Examples" style="width: 100%; height: auto;">
+
 ## Installation
 
 1.  **Install Everest & Olympus:** Ensure you have [Everest](https://everestapi.github.io/) (the Celeste mod loader) and [Olympus](https://gamebanana.com/tools/10 Olympus) (the mod installer/manager) installed.
