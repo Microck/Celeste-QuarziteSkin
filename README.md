@@ -35,6 +35,7 @@ This mod replaces Madeline's sprites with my original character, Quarzite.
     *   Place the resulting mod folder (the one containing `Graphics`, `Dialog`, etc.) inside your Celeste `Mods` directory.
 5.  **Launch & Configure:** Launch Celeste via Everest. Enable the mod in the Mod Options menu if it's not already active. Configure hair colors and other settings via Skin Mod Helper's in-game options menu.
 
+[Everest]([https://images.gamebanana.com/img/ss/mods/6634b2eb111df.jpg](https://everestapi.github.io/main/everest.png))
 
 ## Credits
 
