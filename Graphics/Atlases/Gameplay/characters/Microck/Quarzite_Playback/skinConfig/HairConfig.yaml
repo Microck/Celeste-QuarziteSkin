@@ -1,0 +1,21 @@
+# Please use an online yaml validator
+# There is a lot more customization that you can do. You have to read the doumentation for that.
+
+HairLengths:
+  - Dashes: 0
+    Length: 7
+  - Dashes: 1
+    Length: 7
+  - Dashes: 2
+    Length: 7
+
+HairColors:
+  - Dashes: 0
+    Color: "2E2E2E"
+  - Dashes: 1
+    Color: "FFFFFF"
+  - Dashes: 2
+    Color: "A86ACC"
+
+HairFlash: true # Enables the distracting white flash that happens when your dash count changes.
+OutlineColor: "040000" # This specifies the hair outline color, not the sprite outline.

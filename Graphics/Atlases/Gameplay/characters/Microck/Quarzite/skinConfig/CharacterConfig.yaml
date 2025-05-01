@@ -1,0 +1,3 @@
+LowStaminaFlashColor: "FF0000" # Specifies the color that the player will flash when their stamina is low / depleted.
+LowStaminaFlashHair: true # If enabled, low stamina flash will color the hair in addition to the sprite. (Looks very cool)
+SilhouetteMode: false # If enabled, the sprite will be tinted to the hair color.
