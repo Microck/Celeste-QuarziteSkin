@@ -31,53 +31,54 @@ def scrape_stats(url):
     soup = BeautifulSoup(response.text, 'html.parser')
     stats = {}
 
-    # --- Updated HTML Parsing Logic based on Inspector ---
+    # --- Updated HTML Parsing Logic based on NEW Inspector Screenshot ---
     try:
         # Find the main stats module container
         stats_module = soup.find('module', id='StatsModule')
 
         if stats_module:
-            # Find the list items within the stats module
+            print("Found StatsModule container.")
+            # Find the list items within the stats module and extract text from <itemcount> tag
+
+            # Likes
+            like_li = stats_module.find('li', class_='LikeCount') # Find li with LikeCount class
+            if like_li:
+                itemcount_tag = like_li.find('itemcount') # Find the <itemcount> tag within it
+                if itemcount_tag:
+                    stats['likes'] = itemcount_tag.text # Get the text content
+                else:
+                    print("Could not find <itemcount> tag within LikeCount li.", file=sys.stderr)
+            else:
+                 print("Could not find LikeCount li element.", file=sys.stderr)
+
             # Downloads
             download_li = stats_module.find('li', class_='DownloadCount')
             if download_li:
-                # Find the element with the 'itemcount' attribute inside the li
-                count_element = download_li.find(attrs={"itemcount": True})
-                if count_element:
-                    stats['downloads'] = count_element['itemcount']
+                itemcount_tag = download_li.find('itemcount')
+                if itemcount_tag:
+                    stats['downloads'] = itemcount_tag.text
                 else:
-                    print("Could not find itemcount element within DownloadCount li.", file=sys.stderr)
+                    print("Could not find <itemcount> tag within DownloadCount li.", file=sys.stderr)
             else:
                  print("Could not find DownloadCount li element.", file=sys.stderr)
 
             # Views
             view_li = stats_module.find('li', class_='ViewCount')
             if view_li:
-                count_element = view_li.find(attrs={"itemcount": True})
-                if count_element:
-                    stats['views'] = count_element['itemcount']
+                itemcount_tag = view_li.find('itemcount')
+                if itemcount_tag:
+                    stats['views'] = itemcount_tag.text
                 else:
-                    print("Could not find itemcount element within ViewCount li.", file=sys.stderr)
+                    print("Could not find <itemcount> tag within ViewCount li.", file=sys.stderr)
             else:
                  print("Could not find ViewCount li element.", file=sys.stderr)
 
-            # Likes (Assuming similar structure)
-            like_li = stats_module.find('li', class_='LikeCount')
-            if like_li:
-                count_element = like_li.find(attrs={"itemcount": True})
-                if count_element:
-                    stats['likes'] = count_element['itemcount']
-                else:
-                    print("Could not find itemcount element within LikeCount li.", file=sys.stderr)
-            else:
-                 print("Could not find LikeCount li element.", file=sys.stderr)
-
         else:
+            # This was the error before, keep the message just in case
             print("Could not find the main stats module (id='StatsModule').", file=sys.stderr)
 
     except Exception as e:
         print(f"Error parsing HTML: {e}", file=sys.stderr)
-        # Continue, maybe some stats were found
 
     # Clean up stats (remove potential extra whitespace)
     for key in stats:
@@ -85,6 +86,10 @@ def scrape_stats(url):
             stats[key] = stats[key].strip()
 
     print(f"Scraped stats: {stats}")
+    # Ensure we return None if no stats were found or not all stats were found
+    if not stats or not all(k in stats for k in PLACEHOLDERS.keys()):
+         print("Failed to find all required stats. Check selectors.", file=sys.stderr)
+         return None
     return stats
 
 
@@ -142,16 +147,12 @@ if __name__ == "__main__":
     scraped_data = scrape_stats(GAMEBANANA_URL)
     if scraped_data:
         made_changes = update_readme(README_PATH, scraped_data)
-        # Optional: Exit with a specific code if changes were made?
-        # Could be useful for more complex Actions workflows.
-        # if made_changes:
-        #     sys.exit(0) # Success with changes
-        # else:
-        #     sys.exit(0) # Success without changes (or use a different code)
-
+        # Exit with success code 0 regardless of whether changes were made
+        # The commit step in the Action handles whether to actually commit
+        sys.exit(0)
     else:
         print("Failed to scrape stats, README not updated.", file=sys.stderr)
         sys.exit(1) # Exit with error code 1 to signal failure to Actions
 
-    print("README stats update process finished.")
-
+    # This line is technically unreachable due to sys.exit() calls above
+    # print("README stats update process finished.")
