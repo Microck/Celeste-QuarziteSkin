@@ -32,7 +32,7 @@ This mod replaces Madeline's sprites with my original character, Quarzite.
     *   Click the **"Olympus - Everest Installer"** button (1-Click Install) for the desired version (usually the latest SMH+ compatible one).
     *   Olympus should automatically handle the download and installation.
 4.  **Manual Installation (Alternative):**
-    *   Download the desired `.zip` file from the [GameBanana page](https://gamebanana.com/mods/486547) or the [GitHub Releases page](link-to-your-github-releases-page).
+    *   Download the desired `.zip` file from the [GameBanana page](https://gamebanana.com/mods/486547) or the [GitHub Releases page](https://github.com/Microck/Celeste-QuarziteSkin/releases/tag/release).
     *   Extract the downloaded ZIP file.
     *   Place the resulting mod folder (the one containing `Graphics`, `Dialog`, etc.) inside your Celeste `Mods` directory.
 5.  **Launch & Configure:** Launch Celeste via Everest. Enable the mod in the Mod Options menu if it's not already active. Configure hair colors and other settings via Skin Mod Helper's in-game options menu.
