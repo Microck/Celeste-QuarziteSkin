@@ -1,5 +1,14 @@
 # Quarzite (OC) Skin Mod for Celeste
 
+## Stats from [GameBanana](https://gamebanana.com/mods/486547)
+
+*   **Downloads:** <!-- GB_DOWNLOADS --> N/A
+*   **Views:** <!-- GB_VIEWS --> N/A
+*   **Likes:** <!-- GB_LIKES --> N/A
+
+*(Stats updated periodically via GitHub Actions)*
+
+
 ![Quarzite Cover](https://images.gamebanana.com/img/ss/mods/6634b2eb111df.jpg)
 
 This mod replaces Madeline's sprites with my original character, Quarzite.
