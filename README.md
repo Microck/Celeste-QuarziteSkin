@@ -5,6 +5,7 @@
 This mod replaces Madeline's sprites with my original character, Quarzite.
 
 [Watch the Trailer!](https://youtu.be/cf8vszusN4w)
+
 [Gameplay](https://youtu.be/dm_2ijtqysA)
 
 ## Features
