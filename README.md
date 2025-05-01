@@ -2,11 +2,11 @@
 
 ## Stats from [GameBanana](https://gamebanana.com/mods/486547)
 
-*   **Downloads:** <!-- GB_DOWNLOADS --> N/A
-*   **Views:** <!-- GB_VIEWS --> N/A
-*   **Likes:** <!-- GB_LIKES --> N/A
+*   **Downloads:** <!-- GB_DOWNLOADS --> 11.4k
+*   **Views:** <!-- GB_VIEWS --> 19.7k
+*   **Likes:** <!-- GB_LIKES --> 12
 
-*(Stats updated periodically via GitHub Actions)*
+*(Stats updated periodically via GitHub Actions. Last checked: <!-- LAST_UPDATED --> 2025-05-01 21:41:45 UTC
 
 
 ![Quarzite Cover](https://images.gamebanana.com/img/ss/mods/6634b2eb111df.jpg)

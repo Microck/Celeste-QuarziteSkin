@@ -1,51 +1,63 @@
 name: Update Gamebanana Stats
 
-# Controls when the workflow will run
 on:
   schedule:
     # Runs every 6 hours (adjust cron schedule as needed)
-    # See: https://crontab.guru/
     - cron: '0 */6 * * *'
   workflow_dispatch: # Allows manual triggering from the Actions tab
 
 jobs:
   update-readme:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest # Use a standard Linux runner
     permissions:
-      # Give the workflow contents write permission to commit changes
-      contents: write
+      contents: write # Allow the job to push commits back to the repo
+
     steps:
-      # Check out the repository code
+      # 1. Check out your repository code
       - name: Check out repo
         uses: actions/checkout@v4
 
-      # Set up Python environment
+      # 2. Set up Python environment
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.9' # Or your preferred Python version
 
-      # Install necessary Python packages
-      - name: Install dependencies
+      # 3. Install Python dependencies (Selenium, BeautifulSoup)
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests beautifulsoup4
+          pip install selenium beautifulsoup4 requests # Added requests just in case
 
-      # Run the Python script to update the README
-      - name: Update README stats
+      # 4. Install Google Chrome browser on the runner
+      - name: Install Google Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+
+      # 5. Setup ChromeDriver matching the installed Chrome version
+      # This action automatically downloads the correct driver version
+      - name: Set up ChromeDriver
+        uses: nanasess/setup-chromedriver@v2
+        # No 'with:' needed, it detects Chrome version automatically
+
+      # 6. Run the Python script (which uses Selenium)
+      - name: Run stats update script
         run: python update_readme_stats.py
 
-      # Commit and push the changes back to the repository if README changed
+      # 7. Commit and push changes if README.md was modified
       - name: Commit changes
         run: |
+          # Configure git user for the commit
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          # Check if README.md was modified
+          # Check if README.md has unstaged changes
           if ! git diff --quiet README.md; then
+            echo "README.md has changed, committing..."
             git add README.md
             git commit -m "Automated update of Gamebanana stats"
             git push
-            echo "README.md updated and pushed."
+            echo "Changes pushed successfully."
           else
-            echo "No changes to README.md detected."
+            echo "No changes detected in README.md."
           fi
