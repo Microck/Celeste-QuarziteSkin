@@ -23,7 +23,7 @@ This mod replaces Madeline's sprites with my original character, Quarzite.
 
 ## Installation
 
-1.  **Install Everest & Olympus:** Ensure you have [Everest](https://everestapi.github.io/) (the Celeste mod loader) and [Olympus](https://gamebanana.com/tools/10 Olympus) (the mod installer/manager) installed.
+1.  **Install Everest & Olympus:** Ensure you have [Everest](https://everestapi.github.io/) (the Celeste mod loader) and [Olympus](https://gamebanana.com/tools/6449) (the mod installer/manager) installed.
 2.  **Install Dependencies:** Make sure you have the required helper mods installed via Olympus:
     *   **For basic use:** [Skin Mod Helper](https://gamebanana.com/mods/166543) by bigkahuna443.
     *   **For CelesteNet/SMH+ features:** [Skin Mod Helper (Plus)](https://gamebanana.com/mods/473796) by AAA1459. (Also requires [CelesteNet](https://gamebanana.com/mods/488960) if using online features).
