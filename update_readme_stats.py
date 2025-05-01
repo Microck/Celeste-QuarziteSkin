@@ -39,11 +39,14 @@ def scrape_stats(url):
     chrome_options.add_argument("--disable-gpu") # Often necessary for headless
     chrome_options.add_argument("--window-size=1920,1080") # Specify window size
 
-    driver = None # Initialize driver to None
+driver = None # Initialize driver to None
     try:
         # Initialize WebDriver
         driver = webdriver.Chrome(options=chrome_options)
         print("WebDriver initialized successfully.")
+        # <<< ADD THIS LINE >>>
+        time.sleep(2) # Add a small pause to allow driver to fully initialize
+        # <<< END ADDED LINE >>>
 
         # Load the page
         print(f"Loading page: {url}")
