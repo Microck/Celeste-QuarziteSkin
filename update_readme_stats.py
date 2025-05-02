@@ -178,30 +178,37 @@ def update_readme(readme_path, stats_data):
         print("No changes needed in README."); return False
 
 # --- Main Execution Block ---
+# --- Main Execution Block ---
 if __name__ == "__main__":
     print(f"Starting README stats update process locally at {datetime.now()}...")
 
     # --- Check for PAT ---
-    if not GITHUB_PAT:
-        print("Skipping Git operations because GITHUB_PAT environment variable is not set.", file=sys.stderr)
-        # Decide if you want the script to exit or just skip git operations
-        # sys.exit(1) # Uncomment to exit if PAT is missing
+    # ... (PAT check code) ...
 
-    # --- Optional: Pull latest changes before scraping ---
-    # print("Pulling latest changes from GitHub...")
-    # if GITHUB_PAT: # Only attempt if PAT is set
-    #     run_git_command(['git', 'pull', 'origin', GIT_BRANCH], REPO_DIR)
-    # else:
-    #     print("Skipping git pull (no PAT).")
+    # --- Ensure Repo Directory Exists ---
+    # ... (Repo check code) ...
+
+    # --- Configure Git User Info ---
+    # ... (git config code) ...
+
+    # <<< --- THIS BLOCK SHOULD BE PRESENT --- >>>
+    print(f"Pulling latest changes from origin/{GIT_BRANCH}...")
+    if not run_git_command(['git', 'pull', 'origin', GIT_BRANCH], REPO_DIR):
+        print("Failed to pull latest changes. Check for conflicts or network issues.", file=sys.stderr)
+        sys.exit(1) # Exit if pull fails
+    print("Pull successful or already up-to-date.")
+    # <<< --- END GIT PULL BLOCK --- >>>
 
     # --- Scrape Data ---
     scraped_data = scrape_stats(GAMEBANANA_URL)
 
     if scraped_data:
-        now_utc = datetime.utcnow()
-        timestamp_str = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
-        scraped_data['timestamp'] = timestamp_str
-        print(f"Generated timestamp: {timestamp_str}")
+        # ... (Timestamp generation) ...
+        # ... (Update README call) ...
+
+        # --- Commit and Push if Changed ---
+        if readme_changed and GITHUB_PAT:
+            # ... (Git add, commit, push logic) ...
 
         # --- Update README ---
         readme_changed = update_readme(README_PATH, scraped_data)
