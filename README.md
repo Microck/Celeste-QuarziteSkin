@@ -2,11 +2,11 @@
 
 ## Stats from [GameBanana](https://gamebanana.com/mods/486547)
 
-*   **Downloads:** <!-- GB_DOWNLOADS --> 12.2k
-*   **Views:** <!-- GB_VIEWS --> 20.1k
+*   **Downloads:** <!-- GB_DOWNLOADS --> 12.4k
+*   **Views:** <!-- GB_VIEWS --> 20.3k
 *   **Likes:** <!-- GB_LIKES --> 12
 
-**Last checked:** <!-- LAST_UPDATED --> 2025-06-05 11:05:04 UTC
+**Last checked:** <!-- LAST_UPDATED --> 2025-06-18 09:46:37 UTC
 
 
 
