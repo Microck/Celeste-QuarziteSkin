@@ -2,7 +2,6 @@ import re
 import sys
 import os
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
@@ -11,6 +10,12 @@ from selenium.common.exceptions import TimeoutException, WebDriverException
 from bs4 import BeautifulSoup
 import time
 from datetime import datetime, timezone
+
+# --- Helper function for debugging ---
+def log_and_flush(message):
+    """Prints a message and flushes stdout to ensure it appears in logs immediately."""
+    print(message)
+    sys.stdout.flush()
 
 # --- Configuration ---
 GAMEBANANA_URL = "https://gamebanana.com/mods/486547"
@@ -28,7 +33,9 @@ PLACEHOLDERS = {
 
 def scrape_stats(url):
     """Fetches the Gamebanana page using Selenium and extracts stats."""
-    print(f"Fetching stats from: {url} using Selenium")
+    log_and_flush(f"--- Starting scrape_stats for URL: {url} ---")
+    
+    log_and_flush("Configuring Chrome options...")
     chrome_options = Options()
     chrome_options.add_argument(f"user-agent={USER_AGENT}")
     chrome_options.add_argument("--headless")
@@ -38,36 +45,36 @@ def scrape_stats(url):
     chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
     chrome_options.add_argument('--log-level=3')
+    log_and_flush("Chrome options configured.")
     
     driver = None
     try:
+        log_and_flush("Attempting to initialize WebDriver...")
+        # THIS IS A LIKELY PLACE TO HANG
         driver = webdriver.Chrome(options=chrome_options)
-        print("WebDriver initialized.")
+        log_and_flush("WebDriver initialized successfully.")
 
-        # Set a timeout for the page to load. This prevents an infinite hang.
-        # If the page takes longer than 30 seconds to load, it will raise a TimeoutException.
+        log_and_flush("Setting page load timeout to 30 seconds...")
         driver.set_page_load_timeout(30)
+        log_and_flush("Page load timeout set.")
 
-        print(f"Loading page: {url}")
+        log_and_flush(f"Sending driver.get() command to: {url}")
+        # THIS IS THE SECOND MOST LIKELY PLACE TO HANG
         driver.get(url)
-        print("Page command sent. Waiting for page to become interactive...")
+        log_and_flush("driver.get() command completed. Page load initiated.")
 
-        # Wait up to 20 seconds for the main stats module to be present.
-        # This is much more reliable than a fixed time.sleep().
-        # It ensures the page content we need is actually loaded.
+        log_and_flush("Waiting up to 20 seconds for the StatsModule to be present...")
         WebDriverWait(driver, 20).until(
             EC.presence_of_element_located((By.ID, "StatsModule"))
         )
-        print("StatsModule found. Proceeding with scraping.")
+        log_and_flush("StatsModule found. Proceeding with scraping.")
 
-        # The page is now loaded and the element is present, we can get the source.
         page_source = driver.page_source
         soup = BeautifulSoup(page_source, "html.parser")
         stats = {}
         stats_module = soup.find('module', id='StatsModule')
         if stats_module:
-            print("Found StatsModule container.")
-            # ... (rest of your scraping logic is fine) ...
+            log_and_flush("Found StatsModule container.")
             like_li = stats_module.find('li', class_='LikeCount')
             if like_li:
                 itemcount_tag = like_li.find('itemcount')
@@ -81,75 +88,60 @@ def scrape_stats(url):
                 itemcount_tag = view_li.find('itemcount')
                 if itemcount_tag: stats['views'] = itemcount_tag.text.strip()
         else:
-            print("Could not find the main stats module (id='StatsModule').", file=sys.stderr)
+            log_and_flush("ERROR: Could not find the main stats module (id='StatsModule').")
             return None
 
     except TimeoutException as e:
-        print(f"Error: A timeout occurred. The page or element did not load in time: {e}", file=sys.stderr)
+        log_and_flush(f"ERROR: A timeout occurred. The page or element did not load in time: {e}")
         return None
     except WebDriverException as e:
-        print(f"Error: WebDriverException occurred: {e}", file=sys.stderr)
-        print("Ensure Chrome/ChromeDriver setup is correct.", file=sys.stderr)
+        log_and_flush(f"ERROR: WebDriverException occurred: {e}")
         return None
     except Exception as e:
-        print(f"An unexpected error occurred during Selenium scraping: {e}", file=sys.stderr)
+        log_and_flush(f"ERROR: An unexpected error occurred during Selenium scraping: {e}")
         return None
     finally:
         if driver:
-            print("Quitting WebDriver.")
+            log_and_flush("Quitting WebDriver.")
             driver.quit()
 
-    print(f"Scraped stats: {stats}")
+    log_and_flush(f"Scraped stats: {stats}")
     if not stats or not all(k in stats for k in ["downloads", "views", "likes"]):
-        print("Failed to find all required stats.", file=sys.stderr)
+        log_and_flush("ERROR: Failed to find all required stats.")
         return None
     return stats
 
 def update_readme(readme_path, stats_data):
     """Reads the README, replaces placeholders, and writes back if changed."""
-    print(f"Updating README: {readme_path}")
+    log_and_flush(f"Updating README: {readme_path}")
     if not os.path.exists(readme_path):
-        print(f"Error: README file not found at {readme_path}", file=sys.stderr)
+        log_and_flush(f"ERROR: README file not found at {readme_path}")
         return False
     try:
-        with open(readme_path, 'r', encoding='utf-8') as f:
-            readme_content = f.read()
+        with open(readme_path, 'r', encoding='utf-8') as f: readme_content = f.read()
     except Exception as e:
-        print(f"Error reading README file: {e}", file=sys.stderr)
+        log_and_flush(f"Error reading README file: {e}")
         return False
-    original_content = readme_content
-    changes_made = False
+    original_content = readme_content; changes_made = False
     for key, placeholder in PLACEHOLDERS.items():
         if key in stats_data and stats_data[key] is not None:
-            # Use a more robust regex that handles optional whitespace
             pattern = re.compile(f"({re.escape(placeholder)})\\s*([^\\n<]+)")
             new_text = f"{placeholder} {stats_data[key]}"
             readme_content, num_subs = pattern.subn(new_text, readme_content)
-            if num_subs > 0:
-                print(f"  Updated {key} to {stats_data[key]}")
-                changes_made = True
-            elif key != 'timestamp':
-                print(f"  Placeholder {placeholder} not found or pattern mismatch.")
-        elif key != 'timestamp':
-            print(f"  Stat '{key}' not found in scraped data.")
-
+            if num_subs > 0: log_and_flush(f"  Updated {key} to {stats_data[key]}"); changes_made = True
+            elif key != 'timestamp': log_and_flush(f"  Placeholder {placeholder} not found or pattern mismatch.")
+        elif key != 'timestamp': log_and_flush(f"  Stat '{key}' not found in scraped data.")
     if changes_made and readme_content != original_content:
-        print("Changes detected, writing updated README...")
+        log_and_flush("Changes detected, writing updated README...")
         try:
-            with open(readme_path, 'w', encoding='utf-8') as f:
-                f.write(readme_content)
-            print("README update successful.")
-            return True
-        except IOError as e:
-            print(f"Error writing updated README: {e}", file=sys.stderr)
-            return False
-    else:
-        print("No changes needed in README.")
-        return False
+            with open(readme_path, 'w', encoding='utf-8') as f: f.write(readme_content)
+            log_and_flush("README update successful."); return True
+        except IOError as e: log_and_flush(f"Error writing updated README: {e}"); return False
+    else: log_and_flush("No changes needed in README."); return False
 
 # --- Main Execution Block ---
 if __name__ == "__main__":
-    print(f"Starting README stats update process at {datetime.now()}...")
+    log_and_flush(f"Starting README stats update process at {datetime.now()}...")
     
     scraped_data = scrape_stats(GAMEBANANA_URL)
 
@@ -157,16 +149,16 @@ if __name__ == "__main__":
         now_utc = datetime.now(timezone.utc)
         timestamp_str = now_utc.strftime("%Y-%m-%d %H:%M:%S UTC")
         scraped_data['timestamp'] = timestamp_str
-        print(f"Generated timestamp: {timestamp_str}")
+        log_and_flush(f"Generated timestamp: {timestamp_str}")
 
         readme_changed = update_readme(README_PATH, scraped_data)
 
         if readme_changed:
-            print("README was updated. The workflow will now commit and push the changes.")
+            log_and_flush("README was updated. The workflow will now commit and push the changes.")
             sys.exit(0) # Success
         else:
-            print("No changes were made to the README.")
+            log_and_flush("No changes were made to the README.")
             sys.exit(0) # Success, but nothing to do
     else:
-        print("Failed to scrape stats, README not updated.", file=sys.stderr)
+        log_and_flush("Failed to scrape stats, README not updated.")
         sys.exit(1) # Error
