@@ -5,6 +5,8 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, WebDriverException
 from bs4 import BeautifulSoup
 import time
@@ -15,7 +17,6 @@ GAMEBANANA_URL = "https://gamebanana.com/mods/486547"
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_DIR = SCRIPT_DIR
 README_PATH = os.path.join(REPO_DIR, "README.md")
-# No longer need GITHUB_PAT, REPO_URL, GIT_USER info, or the run_git_command function
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
 PLACEHOLDERS = {
     "downloads": "<!-- GB_DOWNLOADS -->",
@@ -30,24 +31,43 @@ def scrape_stats(url):
     print(f"Fetching stats from: {url} using Selenium")
     chrome_options = Options()
     chrome_options.add_argument(f"user-agent={USER_AGENT}")
-    chrome_options.add_argument("--headless"); chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage"); chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--window-size=1920,1080"); chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--window-size=1920,1080")
+    chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
     chrome_options.add_argument('--log-level=3')
+    
     driver = None
     try:
-        # The workflow sets up Chrome in the PATH, so we don't need to specify a path
         driver = webdriver.Chrome(options=chrome_options)
         print("WebDriver initialized.")
-        time.sleep(2)
-        print(f"Loading page: {url}"); driver.get(url); time.sleep(5)
-        print("Page loaded. Getting page source...")
+
+        # Set a timeout for the page to load. This prevents an infinite hang.
+        # If the page takes longer than 30 seconds to load, it will raise a TimeoutException.
+        driver.set_page_load_timeout(30)
+
+        print(f"Loading page: {url}")
+        driver.get(url)
+        print("Page command sent. Waiting for page to become interactive...")
+
+        # Wait up to 20 seconds for the main stats module to be present.
+        # This is much more reliable than a fixed time.sleep().
+        # It ensures the page content we need is actually loaded.
+        WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located((By.ID, "StatsModule"))
+        )
+        print("StatsModule found. Proceeding with scraping.")
+
+        # The page is now loaded and the element is present, we can get the source.
         page_source = driver.page_source
         soup = BeautifulSoup(page_source, "html.parser")
         stats = {}
         stats_module = soup.find('module', id='StatsModule')
         if stats_module:
             print("Found StatsModule container.")
+            # ... (rest of your scraping logic is fine) ...
             like_li = stats_module.find('li', class_='LikeCount')
             if like_li:
                 itemcount_tag = like_li.find('itemcount')
@@ -60,40 +80,72 @@ def scrape_stats(url):
             if view_li:
                 itemcount_tag = view_li.find('itemcount')
                 if itemcount_tag: stats['views'] = itemcount_tag.text.strip()
-        else: print("Could not find the main stats module (id='StatsModule').", file=sys.stderr)
-    except TimeoutException: print("Error: Page load timed out.", file=sys.stderr); return None
-    except WebDriverException as e: print(f"Error: WebDriverException occurred: {e}", file=sys.stderr); print("Ensure Chrome/ChromeDriver setup is correct.", file=sys.stderr); return None
-    except Exception as e: print(f"Error during Selenium scraping: {e}", file=sys.stderr); return None
+        else:
+            print("Could not find the main stats module (id='StatsModule').", file=sys.stderr)
+            return None
+
+    except TimeoutException as e:
+        print(f"Error: A timeout occurred. The page or element did not load in time: {e}", file=sys.stderr)
+        return None
+    except WebDriverException as e:
+        print(f"Error: WebDriverException occurred: {e}", file=sys.stderr)
+        print("Ensure Chrome/ChromeDriver setup is correct.", file=sys.stderr)
+        return None
+    except Exception as e:
+        print(f"An unexpected error occurred during Selenium scraping: {e}", file=sys.stderr)
+        return None
     finally:
-        if driver: print("Quitting WebDriver."); driver.quit()
+        if driver:
+            print("Quitting WebDriver.")
+            driver.quit()
+
     print(f"Scraped stats: {stats}")
     if not stats or not all(k in stats for k in ["downloads", "views", "likes"]):
-         print("Failed to find all required stats.", file=sys.stderr); return None
+        print("Failed to find all required stats.", file=sys.stderr)
+        return None
     return stats
 
 def update_readme(readme_path, stats_data):
     """Reads the README, replaces placeholders, and writes back if changed."""
     print(f"Updating README: {readme_path}")
-    if not os.path.exists(readme_path): print(f"Error: README file not found at {readme_path}", file=sys.stderr); return False
+    if not os.path.exists(readme_path):
+        print(f"Error: README file not found at {readme_path}", file=sys.stderr)
+        return False
     try:
-        with open(readme_path, 'r', encoding='utf-8') as f: readme_content = f.read()
-    except Exception as e: print(f"Error reading README file: {e}", file=sys.stderr); return False
-    original_content = readme_content; changes_made = False
+        with open(readme_path, 'r', encoding='utf-8') as f:
+            readme_content = f.read()
+    except Exception as e:
+        print(f"Error reading README file: {e}", file=sys.stderr)
+        return False
+    original_content = readme_content
+    changes_made = False
     for key, placeholder in PLACEHOLDERS.items():
         if key in stats_data and stats_data[key] is not None:
+            # Use a more robust regex that handles optional whitespace
             pattern = re.compile(f"({re.escape(placeholder)})\\s*([^\\n<]+)")
             new_text = f"{placeholder} {stats_data[key]}"
             readme_content, num_subs = pattern.subn(new_text, readme_content)
-            if num_subs > 0: print(f"  Updated {key} to {stats_data[key]}"); changes_made = True
-            elif key != 'timestamp': print(f"  Placeholder {placeholder} not found or pattern mismatch.")
-        elif key != 'timestamp': print(f"  Stat '{key}' not found in scraped data.")
+            if num_subs > 0:
+                print(f"  Updated {key} to {stats_data[key]}")
+                changes_made = True
+            elif key != 'timestamp':
+                print(f"  Placeholder {placeholder} not found or pattern mismatch.")
+        elif key != 'timestamp':
+            print(f"  Stat '{key}' not found in scraped data.")
+
     if changes_made and readme_content != original_content:
         print("Changes detected, writing updated README...")
         try:
-            with open(readme_path, 'w', encoding='utf-8') as f: f.write(readme_content)
-            print("README update successful."); return True
-        except IOError as e: print(f"Error writing updated README: {e}", file=sys.stderr); return False
-    else: print("No changes needed in README."); return False
+            with open(readme_path, 'w', encoding='utf-8') as f:
+                f.write(readme_content)
+            print("README update successful.")
+            return True
+        except IOError as e:
+            print(f"Error writing updated README: {e}", file=sys.stderr)
+            return False
+    else:
+        print("No changes needed in README.")
+        return False
 
 # --- Main Execution Block ---
 if __name__ == "__main__":
